@@ -165,133 +165,214 @@
     <button class="download-btn" onclick="downloadCSV()">⬇ Download</button>
   </div>
 
-  <script>
-    const taskForm = document.getElementById("taskForm");
-    const taskList = document.getElementById("taskList");
-    let tasks = [];
+<script>
+  const taskForm = document.getElementById("taskForm");
+  const taskList = document.getElementById("taskList");
+  let tasks = [];
 
-    window.onload = () => {
-      const stored = localStorage.getItem("tasks");
-      if (stored) {
-        tasks = JSON.parse(stored);
-        renderTasks();
-      }
-    };
-
-    taskForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("taskName").value;
-      const date = document.getElementById("taskDate").value;
-      tasks.push({ name, date, completed: false });
-      saveTasks();
-      taskForm.reset();
+  window.onload = () => {
+    const stored = localStorage.getItem("tasks");
+    if (stored) {
+      tasks = JSON.parse(stored);
       renderTasks();
-    });
-
-    function saveTasks() {
-      localStorage.setItem("tasks", JSON.stringify(tasks));
     }
+  };
 
-    function renderTasks() {
-      taskList.innerHTML = '';
-      tasks.forEach((task, index) => {
-        const li = document.createElement("li");
-        const now = new Date();
-        const due = new Date(task.date);
-        const diffDays = Math.ceil((due - now) / (1000 * 3600 * 24));
+  taskForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("taskName").value;
+    const date = document.getElementById("taskDate").value;
+    tasks.push({ name, date, completed: false });
+    saveTasks();
+    taskForm.reset();
+    renderTasks();
+  });
 
-        let statusClass = "blue";
-        if (task.completed) statusClass = "green";
-        else if (diffDays < 0 || diffDays <= 1) statusClass = "red";
-        else if (diffDays <= 7) statusClass = "orange";
+  function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }
 
-        li.className = statusClass;
+  function renderTasks() {
+    taskList.innerHTML = '';
+    tasks.forEach((task, index) => {
+      const li = document.createElement("li");
+      li.setAttribute("draggable", true);
+      li.setAttribute("data-index", index);
 
-        const taskSpan = document.createElement("span");
-        taskSpan.className = "task-text";
-        taskSpan.textContent = `${task.name} (Due: ${task.date})`;
+      const now = new Date();
+      const due = new Date(task.date);
+      const diffDays = Math.ceil((due - now) / (1000 * 3600 * 24));
 
-        const daysLeftSpan = document.createElement("span");
-        daysLeftSpan.className = "days-left";
-        daysLeftSpan.textContent = task.completed
-          ? "✅ Completed"
-          : diffDays >= 0
-            ? `${diffDays} day${diffDays === 1 ? '' : 's'} left`
-            : `❗ Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'}`;
+      let statusClass = "blue";
+      if (task.completed) statusClass = "green";
+      else if (diffDays < 0 || diffDays <= 1) statusClass = "red";
+      else if (diffDays <= 7) statusClass = "orange";
 
-        const actions = document.createElement("div");
-        actions.className = "actions";
+      li.className = statusClass;
 
-        const completeBtn = document.createElement("button");
-        completeBtn.textContent = "✔️";
-        completeBtn.title = "Mark Complete";
-        completeBtn.onclick = () => {
-          task.completed = true;
+      const taskSpan = document.createElement("span");
+      taskSpan.className = "task-text";
+      taskSpan.textContent = `${task.name} (Due: ${task.date})`;
+
+      const daysLeftSpan = document.createElement("span");
+      daysLeftSpan.className = "days-left";
+      daysLeftSpan.textContent = task.completed
+        ? "✅ Completed"
+        : diffDays >= 0
+          ? `${diffDays} day${diffDays === 1 ? '' : 's'} left`
+          : `❗ Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'}`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.textContent = task.completed ? "❌" : "✔️";
+      toggleBtn.title = task.completed ? "Mark Incomplete" : "Mark Complete";
+      toggleBtn.onclick = () => {
+        task.completed = !task.completed;
+        saveTasks();
+        renderTasks();
+      };
+
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "✏️";
+      editBtn.title = "Edit Task";
+      editBtn.onclick = () => {
+  openEditModal(index);
+};
+
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "🗑️";
+      deleteBtn.title = "Delete Task";
+      deleteBtn.onclick = () => {
+        if (confirm("Are you sure you want to delete this task?")) {
+          tasks.splice(index, 1);
           saveTasks();
           renderTasks();
-        };
+        }
+      };
 
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "✏️";
-        editBtn.title = "Edit Task";
-        editBtn.onclick = () => {
-          const newName = prompt("Edit Task Name:", task.name);
-          const newDate = prompt("Edit Due Date (YYYY-MM-DD):", task.date);
-          if (newName && newDate) {
-            task.name = newName;
-            task.date = newDate;
-            saveTasks();
-            renderTasks();
-          }
-        };
+      actions.append(toggleBtn, editBtn, deleteBtn);
+      li.append(taskSpan, daysLeftSpan, actions);
+      taskList.appendChild(li);
+    });
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "🗑️";
-        deleteBtn.title = "Delete Task";
-        deleteBtn.onclick = () => {
-          if (confirm("Are you sure you want to delete this task?")) {
-            tasks.splice(index, 1);
-            saveTasks();
-            renderTasks();
-          }
-        };
+    enableDragAndDrop();
+  }
 
-        actions.append(completeBtn, editBtn, deleteBtn);
-        li.append(taskSpan, daysLeftSpan, actions);
-        taskList.appendChild(li);
-      });
-    }
+  function downloadCSV() {
+    const headers = ["Task", "Due Date", "Completed"];
+    const rows = tasks.map(task => [
+      task.name,
+      task.date,
+      task.completed ? "Yes" : "No"
+    ]);
+    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
 
-    function downloadCSV() {
-      const headers = ["Task", "Due Date", "Completed"];
-      const rows = tasks.map(task => [
-        task.name,
-        task.date,
-        task.completed ? "Yes" : "No"
-      ]);
-      const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
+    const nowIST = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
 
-      const nowIST = new Date().toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false
+    const formatted = nowIST.replace(/\//g, '-').replace(/, /g, '_').replace(/:/g, '-');
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tasks_${formatted}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Drag & Drop logic
+  function enableDragAndDrop() {
+    let draggedItemIndex = null;
+
+    document.querySelectorAll("#taskList li").forEach(li => {
+      li.addEventListener("dragstart", (e) => {
+        draggedItemIndex = +e.target.dataset.index;
+        e.dataTransfer.effectAllowed = "move";
       });
 
-      const formatted = nowIST.replace(/\//g, '-').replace(/, /g, '_').replace(/:/g, '-');
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `tasks_${formatted}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      li.addEventListener("dragover", (e) => {
+        e.preventDefault();
+      });
+
+      li.addEventListener("drop", (e) => {
+        const targetIndex = +e.target.closest("li").dataset.index;
+        if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
+          const draggedItem = tasks[draggedItemIndex];
+          tasks.splice(draggedItemIndex, 1);
+          tasks.splice(targetIndex, 0, draggedItem);
+          saveTasks();
+          renderTasks();
+        }
+      });
+    });
+  }
+</script>
+<script>
+  let currentEditIndex = null;
+
+  function openEditModal(index) {
+    const task = tasks[index];
+    document.getElementById("editName").value = task.name;
+    document.getElementById("editDate").value = task.date;
+    currentEditIndex = index;
+    document.getElementById("editModal").style.display = "flex";
+  }
+
+  function closeEditModal() {
+    document.getElementById("editModal").style.display = "none";
+    currentEditIndex = null;
+  }
+
+  function saveTaskEdit() {
+    const newName = document.getElementById("editName").value.trim();
+    const newDate = document.getElementById("editDate").value;
+
+    if (!newName || !newDate) {
+      alert("Please enter both name and due date.");
+      return;
     }
-  </script>
+
+    tasks[currentEditIndex].name = newName;
+    tasks[currentEditIndex].date = newDate;
+    saveTasks();
+    renderTasks();
+    closeEditModal();
+  }
+</script>
+
+<!-- Modal for editing task -->
+<div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#00000077; justify-content:center; align-items:center; z-index:1000;">
+  <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:400px;">
+    <h3>Edit Task</h3>
+    <label>
+      Task Name:
+      <input type="text" id="editName" style="width:100%; margin-top:5px; padding:10px; border-radius:6px; border:1px solid #ccc;" />
+    </label>
+    <br/><br/>
+    <label>
+      Due Date:
+      <input type="date" id="editDate" style="width:100%; margin-top:5px; padding:10px; border-radius:6px; border:1px solid #ccc;" />
+    </label>
+    <br/><br/>
+    <div style="display:flex; justify-content: flex-end; gap:10px;">
+      <button onclick="closeEditModal()" style="background:#ccc; color:#000; padding:8px 12px; border-radius:6px;">Cancel</button>
+      <button onclick="saveTaskEdit()" style="background:#1976d2; color:#fff; padding:8px 12px; border-radius:6px;">Save</button>
+    </div>
+  </div>
+</div>
+
+
 </body>
 </html>
