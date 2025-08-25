@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Task Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    .summary-btn {
+  display: block;
+  margin: 10px auto 20px;
+  padding: 10px 16px;
+  font-size: 0.9em;
+  border: none;
+  border-radius: 8px;
+  background-color: #ffa000;
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.summary-btn:hover {
+  background-color: #fb8c00;
+}
+
+    :root {
+      --blue: #e3f2fd;
+      --orange: #fff3e0;
+      --red: #ffebee;
+      --green: #e8f5e9;
+      --primary: #1976d2;
+      --secondary: #f4f6f8;
+      --text-color: #333;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: var(--secondary);
+      color: var(--text-color);
+    }
+
+    .container {
+      max-width: 480px;
+      margin: auto;
+      padding: 20px;
+      background: #fff;
+      min-height: 100vh;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--primary);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"], input[type="date"] {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+    }
+
+    button {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--primary);
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #125ea2;
+    }
+
+    .download-btn {
+      background-color: #388e3c;
+      font-size: 0.9em;
+      padding: 8px 12px;
+      width: fit-content;
+      margin: 10px auto 0;
+      display: block;
+    }
+
+    .download-btn:hover {
+      background-color: #2e7d32;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      background-color: var(--blue);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .task-text {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .days-left {
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .actions button {
+      background-color: #eee;
+      color: #333;
+      font-size: 0.85em;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .actions button:hover {
+      background-color: #ddd;
+    }
+
+    .blue { background-color: var(--blue); }
+    .orange { background-color: var(--orange); }
+    .red { background-color: var(--red); }
+    .green { background-color: var(--green); }
+
+    @media (max-width: 600px) {
+      .task-text, .days-left {
+        font-size: 1em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📋 Task Manager</h1>
+    <button class="summary-btn" onclick="location.href='summary.html'">📊 View Summary</button>
+
+    <form id="taskForm">
+      <input type="text" id="taskName" placeholder="Enter task..." required />
+      <input type="date" id="taskDate" required />
+      <button type="submit">➕ Add Task</button>
+    </form>
+
+    <ul id="taskList"></ul>
+
+    <button class="download-btn" onclick="downloadCSV()">⬇ Download</button>
+  </div>
+
+  <script>
+    const taskForm = document.getElementById("taskForm");
+    const taskList = document.getElementById("taskList");
+    let tasks = [];
+
+    window.onload = () => {
+      const stored = localStorage.getItem("tasks");
+      if (stored) {
+        tasks = JSON.parse(stored);
+        renderTasks();
+      }
+    };
+
+    taskForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = document.getElementById("taskName").value;
+      const date = document.getElementById("taskDate").value;
+      tasks.push({ name, date, completed: false });
+      saveTasks();
+      taskForm.reset();
+      renderTasks();
+    });
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = '';
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        const now = new Date();
+        const due = new Date(task.date);
+        const diffDays = Math.ceil((due - now) / (1000 * 3600 * 24));
+
+        let statusClass = "blue";
+        if (task.completed) statusClass = "green";
+        else if (diffDays < 0 || diffDays <= 1) statusClass = "red";
+        else if (diffDays <= 7) statusClass = "orange";
+
+        li.className = statusClass;
+
+        const taskSpan = document.createElement("span");
+        taskSpan.className = "task-text";
+        taskSpan.textContent = `${task.name} (Due: ${task.date})`;
+
+        const daysLeftSpan = document.createElement("span");
+        daysLeftSpan.className = "days-left";
+        daysLeftSpan.textContent = task.completed
+          ? "✅ Completed"
+          : diffDays >= 0
+            ? `${diffDays} day${diffDays === 1 ? '' : 's'} left`
+            : `❗ Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? '' : 's'}`;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const completeBtn = document.createElement("button");
+        completeBtn.textContent = "✔️";
+        completeBtn.title = "Mark Complete";
+        completeBtn.onclick = () => {
+          task.completed = true;
+          saveTasks();
+          renderTasks();
+        };
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✏️";
+        editBtn.title = "Edit Task";
+        editBtn.onclick = () => {
+          const newName = prompt("Edit Task Name:", task.name);
+          const newDate = prompt("Edit Due Date (YYYY-MM-DD):", task.date);
+          if (newName && newDate) {
+            task.name = newName;
+            task.date = newDate;
+            saveTasks();
+            renderTasks();
+          }
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "🗑️";
+        deleteBtn.title = "Delete Task";
+        deleteBtn.onclick = () => {
+          if (confirm("Are you sure you want to delete this task?")) {
+            tasks.splice(index, 1);
+            saveTasks();
+            renderTasks();
+          }
+        };
+
+        actions.append(completeBtn, editBtn, deleteBtn);
+        li.append(taskSpan, daysLeftSpan, actions);
+        taskList.appendChild(li);
+      });
+    }
+
+    function downloadCSV() {
+      const headers = ["Task", "Due Date", "Completed"];
+      const rows = tasks.map(task => [
+        task.name,
+        task.date,
+        task.completed ? "Yes" : "No"
+      ]);
+      const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+
+      const nowIST = new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+
+      const formatted = nowIST.replace(/\//g, '-').replace(/, /g, '_').replace(/:/g, '-');
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tasks_${formatted}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>
