@@ -119,121 +119,136 @@
     <button class="download-btn" onclick="downloadCSV()">Download All Tasks</button>
   </div>
 
-  <script>
-    const taskForm = document.getElementById("taskForm");
-    const taskList = document.getElementById("taskList");
+<script>
+  const taskForm = document.getElementById("taskForm");
+  const taskList = document.getElementById("taskList");
 
-    let tasks = [];
+  let tasks = [];
 
-    taskForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = document.getElementById("taskName").value;
-      const date = document.getElementById("taskDate").value;
-      tasks.push({ name, date, completed: false });
-      document.getElementById("taskName").value = '';
-      document.getElementById("taskDate").value = '';
+  // Load tasks from localStorage
+  window.onload = () => {
+    const stored = localStorage.getItem("tasks");
+    if (stored) {
+      tasks = JSON.parse(stored);
       renderTasks();
-    });
-
-    function renderTasks() {
-      taskList.innerHTML = '';
-      tasks.forEach((task, index) => {
-        const li = document.createElement("li");
-        li.setAttribute("draggable", true);
-        li.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", index));
-        li.addEventListener("dragover", e => e.preventDefault());
-        li.addEventListener("drop", e => {
-          const from = e.dataTransfer.getData("text/plain");
-          const to = index;
-          const moved = tasks.splice(from, 1)[0];
-          tasks.splice(to, 0, moved);
-          renderTasks();
-        });
-
-        const daysLeft = (new Date(task.date) - new Date()) / (1000 * 3600 * 24);
-        let statusClass = "blue";
-        if (task.completed) statusClass = "green";
-        else if (daysLeft < 0) statusClass = "red";
-        else if (daysLeft <= 1) statusClass = "red";
-        else if (daysLeft <= 7) statusClass = "orange";
-
-        li.className = statusClass;
-
-        const taskSpan = document.createElement("span");
-        taskSpan.className = "task-text";
-        taskSpan.textContent = `${task.name} (Due: ${task.date})`;
-
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const completeBtn = document.createElement("button");
-        completeBtn.textContent = "✔️";
-        completeBtn.title = "Mark Complete";
-        completeBtn.onclick = () => {
-          task.completed = true;
-          renderTasks();
-        };
-
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "✏️";
-        editBtn.title = "Edit Task";
-        editBtn.onclick = () => {
-          const newName = prompt("Edit Task Name:", task.name);
-          const newDate = prompt("Edit Due Date (YYYY-MM-DD):", task.date);
-          if (newName && newDate) {
-            task.name = newName;
-            task.date = newDate;
-            renderTasks();
-          }
-        };
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "🗑️";
-        deleteBtn.title = "Delete Task";
-        deleteBtn.onclick = () => {
-          if (confirm("Are you sure you want to delete this task?")) {
-            tasks.splice(index, 1);
-            renderTasks();
-          }
-        };
-
-        actions.append(completeBtn, editBtn, deleteBtn);
-        li.append(taskSpan, actions);
-        taskList.appendChild(li);
-      });
     }
+  };
 
-   function downloadCSV() {
-  const headers = ["Task", "Due Date", "Completed"];
-  const rows = tasks.map(task => [task.name, task.date, task.completed ? "Yes" : "No"]);
-  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-
-  // Get current time in IST
-  const nowIST = new Date().toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
+  taskForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("taskName").value;
+    const date = document.getElementById("taskDate").value;
+    tasks.push({ name, date, completed: false });
+    saveTasks();
+    taskForm.reset();
+    renderTasks();
   });
 
-  // Format to file-safe name: DD-MM-YYYY_HH-MM-SS
-  const formatted = nowIST.replace(/[/]/g, '-').replace(/, /g, '_').replace(/:/g, '-');
+  function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `tasks_${formatted}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
+  function renderTasks() {
+    taskList.innerHTML = '';
+    tasks.forEach((task, index) => {
+      const li = document.createElement("li");
+      li.setAttribute("draggable", true);
+      li.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", index));
+      li.addEventListener("dragover", e => e.preventDefault());
+      li.addEventListener("drop", e => {
+        const from = e.dataTransfer.getData("text/plain");
+        const to = index;
+        const moved = tasks.splice(from, 1)[0];
+        tasks.splice(to, 0, moved);
+        saveTasks();
+        renderTasks();
+      });
 
+      const daysLeft = (new Date(task.date) - new Date()) / (1000 * 3600 * 24);
+      let statusClass = "blue";
+      if (task.completed) statusClass = "green";
+      else if (daysLeft < 0) statusClass = "red";
+      else if (daysLeft <= 1) statusClass = "red";
+      else if (daysLeft <= 7) statusClass = "orange";
 
-  </script>
+      li.className = statusClass;
+
+      const taskSpan = document.createElement("span");
+      taskSpan.className = "task-text";
+      taskSpan.textContent = `${task.name} (Due: ${task.date})`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const completeBtn = document.createElement("button");
+      completeBtn.textContent = "✔️";
+      completeBtn.title = "Mark Complete";
+      completeBtn.onclick = () => {
+        task.completed = true;
+        saveTasks();
+        renderTasks();
+      };
+
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "✏️";
+      editBtn.title = "Edit Task";
+      editBtn.onclick = () => {
+        const newName = prompt("Edit Task Name:", task.name);
+        const newDate = prompt("Edit Due Date (YYYY-MM-DD):", task.date);
+        if (newName && newDate) {
+          task.name = newName;
+          task.date = newDate;
+          saveTasks();
+          renderTasks();
+        }
+      };
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "🗑️";
+      deleteBtn.title = "Delete Task";
+      deleteBtn.onclick = () => {
+        if (confirm("Are you sure you want to delete this task?")) {
+          tasks.splice(index, 1);
+          saveTasks();
+          renderTasks();
+        }
+      };
+
+      actions.append(completeBtn, editBtn, deleteBtn);
+      li.append(taskSpan, actions);
+      taskList.appendChild(li);
+    });
+  }
+
+  function downloadCSV() {
+    const headers = ["Task", "Due Date", "Completed"];
+    const rows = tasks.map(task => [task.name, task.date, task.completed ? "Yes" : "No"]);
+    const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+
+    // Get current time in IST
+    const nowIST = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
+
+    const formatted = nowIST.replace(/\//g, '-').replace(/, /g, '_').replace(/:/g, '-');
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tasks_${formatted}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+</script>
+
 </body>
 </html>
